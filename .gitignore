@@ -8,4 +8,4 @@ __pycache__/
 *.sqlite3
 .DS_Store
 .env
-core/__pycache__/
+core/__pycache__/*
