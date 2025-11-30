@@ -1,0 +1,11 @@
+source/
+venv/
+__pycache__/
+.rag_db/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+.DS_Store
+.env
+core/__pycache__/

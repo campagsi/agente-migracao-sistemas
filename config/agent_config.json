@@ -1,0 +1,101 @@
+{
+  "projectDirs": {
+    "frontend_atual": "/home/rafael/Documentos/ProdabelProjects/certidao-imobiliaria-novo-frontend/",
+    "backend_atual": "/home/rafael/Documentos/ProdabelProjects/certidao-imobiliaria-backend/",
+    "frontend_legado": "/home/rafael/Documentos/ProdabelProjects/cadastro-imobiliario-frontend-fontes/",
+    "backend_legado": ""
+  },
+  "projectFrameworks": {
+    "frontend_atual": "Vue 3 (Composition + PiVue)",
+    "backend_atual": "NestJS",
+    "frontend_legado": "Vue 2 (Legacy)",
+    "backend_legado": "NestJS Legacy"
+  },
+  "projectAliasGroups": {
+    "frontend_legado": [
+      "vue2",
+      "frontend_legado",
+      "legado_vue2"
+    ],
+    "frontend_atual": [
+      "vue3",
+      "frontend_atual",
+      "novo_vue3"
+    ],
+    "backend_atual": [
+      "backend",
+      "backend_atual",
+      "nestjs",
+      "api",
+      "backend_nestjs"
+    ],
+    "backend_legado": [
+      "backend_legado",
+      "legacy_backend",
+      "antigo_backend"
+    ]
+  },
+  "useCaseAliasGroups": {
+    "usc_04_142": [
+      "usc_04_142",
+      "usc04142",
+      "usc.04.142",
+      "pesquisa_de_protocolos",
+      "pesquisa_protocolos",
+      "pesquisa_de_certidoes"
+    ],
+    "usc_04_143": [
+      "usc_04_143",
+      "usc04143",
+      "usc.04.143",
+      "criar_certidao",
+      "criacao_certidao"
+    ],
+    "usc_04_144": [
+      "usc_04_144",
+      "usc04144",
+      "usc.04.144",
+      "emissao_certidao",
+      "emitir_certidao"
+    ]
+  },
+  "useCaseBackendHints": {
+    "usc_04_142": [
+      "consulta.controller.ts",
+      "consulta.service.ts",
+      "consulta.repository.ts",
+      "consulta-emissao-certidao.dto.ts",
+      "imobiliario-legacy.controller.ts",
+      "imobiliario-legacy.service.ts",
+      "imobiliario-legacy.repository.ts"
+    ],
+    "usc_04_143": [
+      "cert-imobiliaria.controller.ts",
+      "cert-imobiliaria.service.ts",
+      "certidao.repository.ts",
+      "create-certidao.dto.ts",
+      "create-certidao-base.dto.ts",
+      "numero-protocolo.dto.ts"
+    ],
+    "usc_04_144": [
+      "cert-imobiliaria.controller.ts",
+      "cert-imobiliaria.service.ts",
+      "imobiliario-legacy.controller.ts",
+      "imobiliario-legacy.service.ts",
+      "imobiliario-legacy.repository.ts",
+      "download-arquivo.dto.ts"
+    ]
+  },
+  "useCaseDescriptions": {
+    "usc_04_142": [
+      "Reproduzir todos os filtros, forma de exibição e comportamento do projeto antigo."
+    ],
+    "usc_04_143": [
+      "Reproduzir abas e comportamento do projeto antigo."
+    ],
+    "usc_04_144": [
+      "Criar as abas: Dados Gerais, Dados Complementares, Arquivos, Histórico e Indeferimento.",
+      "Reproduzir o botão “Carregar dados de outra certidão” com a mesma funcionalidade do legado."
+    ]
+  }
+}
