@@ -123,11 +123,47 @@ def build_react_agent(rag_history: list[tuple[str, str]]):
         """Substitui o conteúdo de um arquivo e registra a alteração."""
         return tools.escrever_arquivo(caminho, conteudo)
 
+    @tool("criar_ou_atualizar_plano")
+    def criar_ou_atualizar_plano_tool(projeto: str, nome_plano: str, conteudo: str) -> str:
+        """
+        Cria ou atualiza um arquivo de planejamento em docs/planejamentos.
+        Use para registrar planos por etapas (ex.: 'Planejamento T6').
+        """
+        return tools.criar_ou_atualizar_plano(projeto, nome_plano, conteudo)
+
+    @tool("registrar_decisao_arquitetura")
+    def registrar_decisao_arquitetura_tool(
+        titulo: str,
+        contexto: str,
+        decisao: str,
+        consequencias: str | None = None,
+    ) -> str:
+        """
+        Registra uma decisão de arquitetura em docs/decisoes_arquitetura.md.
+        """
+        return tools.registrar_decisao_arquitetura(
+            titulo=titulo,
+            contexto=contexto,
+            decisao=decisao,
+            consequencias=consequencias,
+        )
+
+    @tool("listar_projetos_configurados")
+    def listar_projetos_configurados_tool() -> str:
+        """
+        Lista os projetos e aliases configurados no agente.
+        """
+        return tools.listar_projetos_configurados()
+
+
     agent_tools = [
         consultar_documentacao,
         buscar_arquivos_tool,
         ler_arquivo_tool,
         escrever_arquivo_tool,
+        criar_ou_atualizar_plano_tool,
+        registrar_decisao_arquitetura_tool,
+        listar_projetos_configurados_tool,
     ]
 
     def _react_model(_: Any, __: Any) -> LegacyChatOpenAI:

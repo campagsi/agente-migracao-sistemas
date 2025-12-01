@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple
 
@@ -149,3 +150,156 @@ def buscar_arquivos(projeto: str, filtro: str) -> str:
         return _buscar_arquivos_backend_por_filtro(filtro, raiz)
 
     return _buscar_arquivos_em_diretorio(raiz, filtro)
+
+
+# --- Novas tools genéricas para planejamento e documentação ---
+
+def _slugify_nome(nome: str) -> str:
+    """Gera um slug simples, só com letras/números/minusculas e hífen."""
+    if not nome:
+        return "plano"
+    nome = nome.strip().lower()
+    slug_chars: list[str] = []
+    for ch in nome:
+        if ch.isalnum():
+            slug_chars.append(ch)
+        else:
+            slug_chars.append("-")
+    slug = "".join(slug_chars).strip("-")
+    return slug or "plano"
+
+
+def criar_ou_atualizar_plano(projeto: str, nome_plano: str, conteudo: str) -> str:
+    """
+    Cria ou atualiza um arquivo de planejamento em docs/planejamentos/<projeto>/<slug>.md.
+
+    - `projeto`: nome ou alias do projeto (ex.: 'frontend', 'backend', 'certidao').
+    - `nome_plano`: nome lógico do plano (ex.: 'Planejamento T6', 'Migração USC_04_142').
+    - `conteudo`: conteúdo em markdown, normalmente gerado pelo LLM.
+    """
+    if not nome_plano:
+        return "Erro: informe um nome para o plano."
+
+    projeto_resolvido = resolver_projeto_busca(projeto)
+    if not projeto_resolvido:
+        # Se não reconhecer o projeto, joga em uma pasta 'geral'
+        projeto_resolvido = "geral"
+
+    try:
+        base_docs: Path = getattr(config, "DOCS_DIR", Path("docs"))
+    except Exception:
+        base_docs = Path("docs")
+
+    slug = _slugify_nome(nome_plano)
+    caminho_plano = base_docs / "planejamentos" / projeto_resolvido / f"{slug}.md"
+    caminho_plano.parent.mkdir(parents=True, exist_ok=True)
+
+    # Se já existir, sobrescreve com a nova versão (replanejamento).
+    cabecalho = f"# {nome_plano}\n\n"
+    if not conteudo.strip():
+        conteudo_final = cabecalho + "_(plano criado sem conteúdo; preencha posteriormente)_\n"
+    else:
+        conteudo_final = cabecalho + conteudo.strip() + "\n"
+
+    caminho_plano.write_text(conteudo_final, encoding="utf-8")
+    registrar_alteracao(caminho_plano)
+
+    return (
+        "Plano salvo com sucesso.\n"
+        f"Projeto: {projeto_resolvido}\n"
+        f"Arquivo: {caminho_plano}"
+    )
+
+
+def registrar_decisao_arquitetura(
+    titulo: str,
+    contexto: str,
+    decisao: str,
+    consequencias: str | None = None,
+) -> str:
+    """
+    Registra uma decisão de arquitetura em docs/decisoes_arquitetura.md.
+
+    Cada chamada apende um bloco markdown com:
+    - data/hora
+    - título
+    - contexto
+    - decisão
+    - consequências (opcional)
+    """
+    if not titulo:
+        return "Erro: informe um título para a decisão."
+    if not contexto:
+        return "Erro: informe um contexto para a decisão."
+    if not decisao:
+        return "Erro: informe a descrição da decisão tomada."
+
+    try:
+        base_docs: Path = getattr(config, "DOCS_DIR", Path("docs"))
+    except Exception:
+        base_docs = Path("docs")
+
+    caminho_decisoes = base_docs / "decisoes_arquitetura.md"
+    caminho_decisoes.parent.mkdir(parents=True, exist_ok=True)
+
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    bloco = [
+        "---",
+        f"**Data/Hora:** {agora}",
+        f"**Título:** {titulo.strip()}",
+        "",
+        "### Contexto",
+        contexto.strip(),
+        "",
+        "### Decisão",
+        decisao.strip(),
+    ]
+
+    if consequencias and consequencias.strip():
+        bloco.extend(
+            [
+                "",
+                "### Consequências",
+                consequencias.strip(),
+            ]
+        )
+
+    bloco.extend(["", ""])  # linha em branco final
+
+    with caminho_decisoes.open("a", encoding="utf-8") as f:
+        f.write("\n".join(bloco))
+
+    registrar_alteracao(caminho_decisoes)
+
+    return f"Decisão registrada em: {caminho_decisoes}"
+
+
+def listar_projetos_configurados() -> str:
+    """
+    Lista projetos configurados em config.PROJECT_PATHS e seus aliases
+    em config.PROJECT_ALIAS_GROUPS.
+    """
+    linhas: list[str] = []
+
+    projetos = getattr(config, "PROJECT_PATHS", {}) or {}
+    aliases = getattr(config, "PROJECT_ALIAS_GROUPS", {}) or {}
+
+    if not projetos:
+        return "Nenhum projeto configurado em config.PROJECT_PATHS."
+
+    linhas.append("Projetos configurados:\n")
+    for nome, caminho in projetos.items():
+        linhas.append(f"- **{nome}** → {caminho}")
+
+        # Procura aliases que apontam para esse projeto
+        aliases_projeto = [
+            alias
+            for key, group in aliases.items()
+            if key == nome
+            for alias in group
+        ]
+        if aliases_projeto:
+            linhas.append(f"  - Aliases: {', '.join(sorted(set(aliases_projeto)))}")
+
+    return "\n".join(linhas)
