@@ -8,6 +8,18 @@ from .utils import (
     registrar_relatorio_execucao,
 )
 
+CONTEXT_FIELDS = [
+    "tarefa_atual",
+    "caso_uso",
+    "prioridade",
+    "planejamento_format",
+    "prazo",
+    "integracoes_externas",
+    "implementado_frontend",
+    "endpoints_backend",
+    "regras_negocio",
+]
+
 
 def run():
     if not config.DB_DIR.exists():
@@ -16,6 +28,8 @@ def run():
 
     rag_history: list[tuple[str, str]] = []
     graph_app = build_graph_agent(rag_history)
+    history: list = []
+    context_state = {key: None for key in CONTEXT_FIELDS}
 
     print("Agente RAG Certidão Imobiliária – digite 'sair' para encerrar.")
 
@@ -28,7 +42,12 @@ def run():
             print("Até mais!")
             break
 
-        estado_inicial = {"input": pergunta, "answer": ""}
+        estado_inicial = {
+            "input": pergunta,
+            "answer": "",
+            "history": history,
+            **context_state,
+        }
         novo_estado = graph_app.invoke(estado_inicial)
         answer = novo_estado["answer"]
 
@@ -38,3 +57,6 @@ def run():
         arquivos_alterados = sorted(config.ALTERACOES_ATUAIS)
         registrar_relatorio_execucao(pergunta, answer, arquivos_alterados)
         registrar_arquivos_alterados_resumido(arquivos_alterados)
+
+        context_state = {key: novo_estado.get(key) for key in CONTEXT_FIELDS}
+        history = novo_estado.get("history", history)

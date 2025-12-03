@@ -2,15 +2,14 @@ import os
 from typing import Any, Tuple, TypedDict
 
 from langchain_classic.chains import ConversationalRetrievalChain
-from langchain_community.chat_models import ChatOpenAI
 from langchain_chroma import Chroma
 from langchain_core.callbacks import BaseCallbackHandler
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.tools import tool
-from langchain_openai import OpenAIEmbeddings
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import create_react_agent
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 from . import config
 from . import tools
@@ -166,11 +165,14 @@ def build_react_agent(rag_history: list[tuple[str, str]]):
         listar_projetos_configurados_tool,
     ]
 
-    def _react_model(_: Any, __: Any) -> LegacyChatOpenAI:
-        return LegacyChatOpenAI(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"), temperature=0)
+    # def _react_model(_: Any, __: Any) -> LegacyChatOpenAI:
+    #     return LegacyChatOpenAI(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"), temperature=0)
+    
+    llm = LegacyChatOpenAI(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"), temperature=0)
 
     agent = create_react_agent(
-        model=_react_model,
+        # model=_react_model,
+        model=llm,
         tools=agent_tools,
         prompt=SYSTEM_PROMPT,
         version="v2",
@@ -180,8 +182,19 @@ def build_react_agent(rag_history: list[tuple[str, str]]):
 
 
 class AgentState(TypedDict):
-    input: str
-    answer: str
+    input: str                   # pergunta atual do usuário
+    answer: str                  # última resposta gerada pelo agente
+    history: list[BaseMessage]   # histórico acumulado de mensagens (Human, AI, etc.)
+    tarefa_atual: str | None     # ex: "T6"
+    caso_uso: str | None         # ex: "usc_04_142"
+    prioridade: str | None       # ex: "alta"
+    planejamento_format: str | None  # ex: "todo" ou "topicos"
+    prazo: str | None            # prazo (livre, formato string)
+    integracoes_externas: str | None # integrações externas informadas pelo usuário
+    implementado_frontend: str | None
+    endpoints_backend: str | None
+    regras_negocio: str | None
+
 
 
 def build_graph_agent(rag_history: list[tuple[str, str]]):
@@ -193,20 +206,90 @@ def build_graph_agent(rag_history: list[tuple[str, str]]):
     def executar_agente(state: AgentState) -> AgentState:
         pergunta = state["input"]
         callback_handler = TerminalCallbackHandler()
-        mensagens = [
-            HumanMessage(content=pergunta),
+        historia_anterior = state.get("history") or []
+
+        confirmacoes = {
+            "sim",
+            "sim.",
+            "yes",
+            "claro",
+            "pode fazer isso",
+            "pode prosseguir",
+            "prossiga",
+        }
+        pergunta_normalizada = pergunta.strip().lower()
+        eh_confirmacao = pergunta_normalizada in confirmacoes
+
+        ultimo_ai: AIMessage | None = None
+        if historia_anterior:
+            for msg in reversed(historia_anterior):
+                if isinstance(msg, AIMessage):
+                    ultimo_ai = msg
+                    break
+
+        context_parts: list[str] = []
+        field_labels = [
+            ("tarefa_atual", "Tarefa atual"),
+            ("caso_uso", "Caso de uso"),
+            ("prioridade", "Prioridade"),
+            ("planejamento_format", "Formato de planejamento"),
+            ("prazo", "Prazo"),
+            ("integracoes_externas", "Integrações externas"),
+            ("implementado_frontend", "Frontend implementado"),
+            ("endpoints_backend", "Endpoints backend"),
+            ("regras_negocio", "Regras de negócio"),
         ]
+        for field, label in field_labels:
+            valor = state.get(field)
+            if valor:
+                context_parts.append(f"{label}: {valor}")
+
+        if eh_confirmacao and ultimo_ai:
+            ultima_pergunta = ultimo_ai.content.strip()
+            if ultima_pergunta.endswith("?") or "?" in ultima_pergunta:
+                context_parts.append(
+                    "Confirmação do usuário: aceitou a última sugestão do agente."
+                )
+
+        mensagens = historia_anterior.copy()
+        if context_parts:
+            context_text = " | ".join(context_parts)
+            mensagens.insert(0, SystemMessage(content=context_text))
+
+        mensagens.append(HumanMessage(content=pergunta))
+
         resultado = react_agent.invoke(
             {"messages": mensagens, "remaining_steps": max_iterations},
             config={"callbacks": [callback_handler]},
         )
+
         mensagens_resultado = resultado.get("messages", [])
         ultima_resposta = next(
             (m for m in reversed(mensagens_resultado) if isinstance(m, AIMessage)), None
         )
         answer = ultima_resposta.content if ultima_resposta else ""
+
+        novo_historico = historia_anterior.copy()
+        novo_historico.append(HumanMessage(content=pergunta))
+        if ultima_resposta:
+            novo_historico.append(ultima_resposta)
+
         rag_history.append((pergunta, answer))
-        return {"input": pergunta, "answer": answer}
+
+        return {
+            "input": pergunta,
+            "answer": answer,
+            "history": novo_historico,
+            "tarefa_atual": state.get("tarefa_atual"),
+            "caso_uso": state.get("caso_uso"),
+            "prioridade": state.get("prioridade"),
+            "planejamento_format": state.get("planejamento_format"),
+            "prazo": state.get("prazo"),
+            "integracoes_externas": state.get("integracoes_externas"),
+            "implementado_frontend": state.get("implementado_frontend"),
+            "endpoints_backend": state.get("endpoints_backend"),
+            "regras_negocio": state.get("regras_negocio"),
+        }
 
     graph = StateGraph(AgentState)
     graph.add_node("executar_agente", executar_agente)

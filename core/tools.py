@@ -53,8 +53,16 @@ def _coletar_arquivos_por_nome(
 
     resultados: list[str] = []
     atingiu_limite = False
+
+    # pastas que queremos ignorar em QUALQUER ponto do caminho
+    IGNORAR_DIRS = {"node_modules", "modules", ".git", "dist", "build", "__pycache__"}
+
     try:
         for caminho in raiz.rglob("*"):
+            # se qualquer parte do caminho for uma das pastas ignoradas, pula
+            if any(part in IGNORAR_DIRS for part in caminho.parts):
+                continue
+
             if caminho.is_file() and filtro_normalizado in caminho.name.lower():
                 resultados.append(str(caminho))
                 if len(resultados) >= limite:
@@ -151,9 +159,6 @@ def buscar_arquivos(projeto: str, filtro: str) -> str:
 
     return _buscar_arquivos_em_diretorio(raiz, filtro)
 
-
-# --- Novas tools genéricas para planejamento e documentação ---
-
 def _slugify_nome(nome: str) -> str:
     """Gera um slug simples, só com letras/números/minusculas e hífen."""
     if not nome:
@@ -167,7 +172,6 @@ def _slugify_nome(nome: str) -> str:
             slug_chars.append("-")
     slug = "".join(slug_chars).strip("-")
     return slug or "plano"
-
 
 def criar_ou_atualizar_plano(projeto: str, nome_plano: str, conteudo: str) -> str:
     """
