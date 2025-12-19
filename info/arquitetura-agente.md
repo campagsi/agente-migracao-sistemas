@@ -49,7 +49,7 @@ sequenceDiagram
 graph LR
     cfg[config/agent_config.json] -->|projectDirs| core/config.py
     cfg -->|projectAliasGroups| core/utils.py
-    cfg -->|useCaseHints| core/tools.py
+    cfg -->|contexts| core/tools.py
     core/config.py --> CLI
 ```
 

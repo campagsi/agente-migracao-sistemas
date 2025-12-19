@@ -4,7 +4,7 @@ from typing import Tuple
 
 from . import config
 
-USE_CASE_ALIAS_MAP: dict[str, str] = {}
+CONTEXT_ALIAS_MAP: dict[str, str] = {}
 PROJECT_ALIAS_MAP: dict[str, str] = {}
 
 
@@ -19,17 +19,17 @@ def _normalizar_identificador(valor: str) -> str:
     )
 
 
-for _caso, _aliases in config.USE_CASE_ALIAS_GROUPS.items():
+for _contexto, _aliases in config.CONTEXT_ALIAS_GROUPS.items():
     for _alias in _aliases:
-        USE_CASE_ALIAS_MAP[_normalizar_identificador(_alias)] = _caso
+        CONTEXT_ALIAS_MAP[_normalizar_identificador(_alias)] = _contexto
 
 for _projeto, _aliases in config.PROJECT_ALIAS_GROUPS.items():
     for _alias in _aliases:
         PROJECT_ALIAS_MAP[_normalizar_identificador(_alias)] = _projeto
 
 
-def identificar_caso_uso(valor: str) -> str | None:
-    return USE_CASE_ALIAS_MAP.get(_normalizar_identificador(valor))
+def identificar_contexto(valor: str) -> str | None:
+    return CONTEXT_ALIAS_MAP.get(_normalizar_identificador(valor))
 
 
 def resolver_projeto_busca(valor: str) -> str | None:
@@ -136,3 +136,34 @@ def registrar_arquivos_alterados_resumido(arquivos_alterados: list[str]) -> None
     with config.ARQUIVOS_ALTERADOS_FILE.open("a", encoding="utf-8") as f:
         f.write(bloco)
     registrar_alteracao(config.ARQUIVOS_ALTERADOS_FILE)
+
+
+import re
+from pathlib import Path
+
+def carregar_contexto_de_docs() -> dict:
+    caminho_todo = Path("docs/todo.md")
+    if not caminho_todo.is_file():
+        return {key: None for key in [
+            "tarefa_atual", "caso_uso", "prioridade", "planejamento_format",
+            "prazo", "integracoes_externas", "implementado_frontend",
+            "endpoints_backend", "regras_negocio"
+        ]}
+
+    texto = caminho_todo.read_text(encoding="utf-8")
+
+    def extrair_valor(padrao, flags=0):
+        match = re.search(padrao, texto, flags)
+        return match.group(1).strip() if match else None
+
+    return {
+        "tarefa_atual": extrair_valor(r"# Planejamento (T\d+)", re.IGNORECASE),
+        "caso_uso": extrair_valor(r"## Caso de uso\n([a-z0-9_]+)", re.IGNORECASE),
+        "prioridade": extrair_valor(r"## Prioridade\n(.+)", re.IGNORECASE),
+        "planejamento_format": extrair_valor(r"## Formato\n(.+)", re.IGNORECASE),
+        "prazo": extrair_valor(r"## Prazo\n(.+)", re.IGNORECASE),
+        "integracoes_externas": extrair_valor(r"## Integrações externas\n(.+)", re.IGNORECASE),
+        "implementado_frontend": extrair_valor(r"## Frontend\n(.+)", re.IGNORECASE),
+        "endpoints_backend": extrair_valor(r"Endpoint:\s*(.+)", re.IGNORECASE),
+        "regras_negocio": extrair_valor(r"## Regras de negócio\n(.+?)(\n##|\Z)", re.IGNORECASE | re.DOTALL),
+    }

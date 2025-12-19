@@ -1,16 +1,16 @@
-# 🏗️ Manual de Instalação – Agente RAG PBH + Servidor OpenAI-Compatible
+# 🏗️ Manual de Instalação – Agente RAG  + Servidor OpenAI-Compatible
 
 # 📌 Visão Geral
 
 Este documento descreve a instalação, configuração e execução do:
 
-Agente RAG PBH (LangChain + LangGraph + RAG)
+Agente RAG  (LangChain + LangGraph + RAG)
 
 Servidor compatível com API OpenAI (server.py)
 
 Integração com a extensão Continue.dev no VS Code
 
-O objetivo é permitir conversar com o agente PBH usando uma interface de chat dentro do VS Code.
+O objetivo é permitir conversar com o agente  usando uma interface de chat dentro do VS Code.
 
 # 1️⃣ Requisitos
 
@@ -102,7 +102,7 @@ Ctrl + Shift + P → Continue: Edit Config
 
 E adicione ao config.yaml:
 
-name: Agente Certidao PBH
+name: Agente Certidao 
 version: 1.0.0
 schema: v1
 

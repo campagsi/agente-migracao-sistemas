@@ -11,3 +11,6 @@ __pycache__/
 core/__pycache__/*
 *.tar
 *.zip
+config/system_prompt_blocks/
+docs/
+config/agent_config.json

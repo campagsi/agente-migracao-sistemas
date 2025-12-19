@@ -8,7 +8,7 @@ import uvicorn
 import agent  # seu agent.py
 
 app = FastAPI(
-    title="Agente Certidão PBH",
+    title="Agente Certidão ",
     description="Servidor OpenAI-compatible para o agente RAG (LangChain + LangGraph).",
 )
 

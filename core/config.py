@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from dotenv import load_dotenv
 
@@ -16,109 +16,69 @@ if not CONFIG_PATH.is_absolute():
 
 def _load_agent_config(path: Path) -> dict[str, Any]:
     if not path.exists():
-        return {}
+        raise FileNotFoundError(
+            f"Arquivo de configuração do agente não encontrado em '{path}'."
+        )
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        print(f"[Aviso] Não foi possível decodificar {path}: {exc}")
-        return {}
+        raise ValueError(
+            f"Não foi possível decodificar o arquivo de configuração '{path}': {exc}."
+        ) from exc
 
 
 AGENT_CONFIG = _load_agent_config(CONFIG_PATH)
 
-DEFAULT_PROJECT_DIRS: dict[str, str] = {
-    "frontend_atual": "/home/rafael/Documentos/ProdabelProjects/certidao-imobiliaria-novo-frontend/",
-    "backend_atual": "/home/rafael/Documentos/ProdabelProjects/certidao-imobiliaria-backend/",
-    "frontend_legado": "/home/rafael/Documentos/ProdabelProjects/cadastro-imobiliario-frontend-fontes/",
-    "backend_legado": "",
-}
 
-DEFAULT_PROJECT_FRAMEWORKS: dict[str, str] = {
-    "frontend_atual": "Vue 3 (Composition + PiVue)",
-    "backend_atual": "NestJS",
-    "frontend_legado": "Vue 2 (Legacy)",
-    "backend_legado": "NestJS Legacy",
-}
+class ContextDefinition(TypedDict):
+    aliases: list[str]
+    descriptions: list[str]
+    hints: dict[str, list[str]]
 
-DEFAULT_PROJECT_ALIAS_GROUPS: dict[str, list[str]] = {
-    "frontend_legado": ["vue2", "frontend_legado", "legado_vue2"],
-    "frontend_atual": ["vue3", "frontend_atual", "novo_vue3"],
-    "backend_atual": ["backend", "backend_atual", "nestjs", "api", "backend_nestjs"],
-    "backend_legado": ["backend_legado", "legacy_backend", "antigo_backend"],
-}
 
-DEFAULT_USE_CASE_ALIAS_GROUPS: dict[str, list[str]] = {
-    "usc_04_142": [
-        "usc_04_142",
-        "usc04142",
-        "usc.04.142",
-        "pesquisa_de_protocolos",
-        "pesquisa_protocolos",
-        "pesquisa_de_certidoes",
-    ],
-    "usc_04_143": [
-        "usc_04_143",
-        "usc04143",
-        "usc.04.143",
-        "criar_certidao",
-        "criacao_certidao",
-    ],
-    "usc_04_144": [
-        "usc_04_144",
-        "usc04144",
-        "usc.04.144",
-        "emissao_certidao",
-        "emitir_certidao",
-    ],
-}
+def _require_config_section(section: str) -> dict[str, Any]:
+    value = AGENT_CONFIG.get(section)
+    if value is None:
+        raise RuntimeError(
+            f"Configuração obrigatória '{section}' ausente em '{CONFIG_PATH}'."
+        )
+    if not isinstance(value, dict):
+        raise RuntimeError(
+            f"Esperado um objeto para '{section}' em '{CONFIG_PATH}', mas foi recebido {type(value).__name__}."
+        )
+    return value
 
-DEFAULT_USE_CASE_BACKEND_HINTS: dict[str, list[str]] = {
-    "usc_04_142": [
-        "consulta.controller.ts",
-        "consulta.service.ts",
-        "consulta.repository.ts",
-        "consulta-emissao-certidao.dto.ts",
-        "imobiliario-legacy.controller.ts",
-        "imobiliario-legacy.service.ts",
-        "imobiliario-legacy.repository.ts",
-    ],
-    "usc_04_143": [
-        "cert-imobiliaria.controller.ts",
-        "cert-imobiliaria.service.ts",
-        "certidao.repository.ts",
-        "create-certidao.dto.ts",
-        "create-certidao-base.dto.ts",
-        "numero-protocolo.dto.ts",
-    ],
-    "usc_04_144": [
-        "cert-imobiliaria.controller.ts",
-        "cert-imobiliaria.service.ts",
-        "imobiliario-legacy.controller.ts",
-        "imobiliario-legacy.service.ts",
-        "imobiliario-legacy.repository.ts",
-        "download-arquivo.dto.ts",
-    ],
-}
 
-DEFAULT_USE_CASE_DESCRIPTIONS: dict[str, list[str]] = {
-    "usc_04_142": [
-        "Reproduzir todos os filtros, forma de exibição e comportamento do projeto antigo."
-    ],
-    "usc_04_143": ["Reproduzir abas e comportamento do projeto antigo."],
-    "usc_04_144": [
-        "Criar as abas: Dados Gerais, Dados Complementares, Arquivos, Histórico e Indeferimento.",
-        "Reproduzir o botão “Carregar dados de outra certidão” com a mesma funcionalidade do legado.",
-    ],
-}
+def _require_str_mapping(section: str) -> dict[str, str]:
+    mapping = _require_config_section(section)
+    result: dict[str, str] = {}
+    for key, value in mapping.items():
+        if not isinstance(key, str) or not isinstance(value, str):
+            raise RuntimeError(
+                f"Todos os pares de '{section}' devem ser strings no arquivo '{CONFIG_PATH}'."
+            )
+        result[key] = value
+    return result
 
-USE_CASE_DESCRIPTIONS: dict[str, list[str]] = AGENT_CONFIG.get(
-    "useCaseDescriptions", DEFAULT_USE_CASE_DESCRIPTIONS
-)
 
-PROJECT_DIRS: dict[str, str] = AGENT_CONFIG.get("projectDirs", DEFAULT_PROJECT_DIRS)
-PROJECT_FRAMEWORKS: dict[str, str] = AGENT_CONFIG.get(
-    "projectFrameworks", DEFAULT_PROJECT_FRAMEWORKS
-)
+def _require_str_list_mapping(section: str) -> dict[str, list[str]]:
+    mapping = _require_config_section(section)
+    result: dict[str, list[str]] = {}
+    for key, value in mapping.items():
+        if not isinstance(key, str) or not isinstance(value, list):
+            raise RuntimeError(
+                f"Entradas de '{section}' devem mapear strings para listas em '{CONFIG_PATH}'."
+            )
+        if not all(isinstance(item, str) for item in value):
+            raise RuntimeError(
+                f"Todos os itens das listas em '{section}' precisam ser strings em '{CONFIG_PATH}'."
+            )
+        result[key] = value
+    return result
+
+
+PROJECT_DIRS: dict[str, str] = _require_str_mapping("projectDirs")
+PROJECT_FRAMEWORKS: dict[str, str] = _require_str_mapping("projectFrameworks")
 
 
 def _path_from_env(value: str | None) -> Path | None:
@@ -130,18 +90,98 @@ def _path_from_env(value: str | None) -> Path | None:
 PROJECT_PATHS: dict[str, Path | None] = {
     chave: _path_from_env(valor) for chave, valor in PROJECT_DIRS.items()
 }
-PROJECT_ALIAS_GROUPS: dict[str, list[str]] = AGENT_CONFIG.get(
-    "projectAliasGroups", DEFAULT_PROJECT_ALIAS_GROUPS
+
+PROJECT_ALIAS_GROUPS: dict[str, list[str]] = _require_str_list_mapping(
+    "projectAliasGroups"
 )
-USE_CASE_ALIAS_GROUPS: dict[str, list[str]] = AGENT_CONFIG.get(
-    "useCaseAliasGroups", DEFAULT_USE_CASE_ALIAS_GROUPS
+
+
+def _ensure_str_list(value: Any, contexto: str) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise RuntimeError(
+            f"O campo '{contexto}' deve ser uma lista de strings em '{CONFIG_PATH}'."
+        )
+    if not all(isinstance(item, str) for item in value):
+        raise RuntimeError(
+            f"Todos os itens de '{contexto}' devem ser strings em '{CONFIG_PATH}'."
+        )
+    return value
+
+
+def _parse_context_definitions(section: str) -> dict[str, ContextDefinition]:
+    raw = _require_config_section(section)
+    contexts: dict[str, ContextDefinition] = {}
+    for nome, dados in raw.items():
+        if not isinstance(dados, dict):
+            raise RuntimeError(
+                f"As entradas de '{section}' devem ser objetos; '{nome}' não é válido."
+            )
+        aliases = _ensure_str_list(dados.get("aliases", []), f"{section}.{nome}.aliases")
+        descriptions = _ensure_str_list(
+            dados.get("descriptions", []), f"{section}.{nome}.descriptions"
+        )
+        hints_raw = dados.get("hints", {})
+        if hints_raw is None:
+            hints_raw = {}
+        if not isinstance(hints_raw, dict):
+            raise RuntimeError(
+                f"As dicas de '{section}.{nome}.hints' devem ser um objeto."
+            )
+        hints: dict[str, list[str]] = {}
+        for hint_tipo, lista in hints_raw.items():
+            hints[hint_tipo] = _ensure_str_list(
+                lista, f"{section}.{nome}.hints.{hint_tipo}"
+            )
+        contexts[nome] = ContextDefinition(
+            aliases=aliases,
+            descriptions=descriptions,
+            hints=hints,
+        )
+    return contexts
+
+
+CONTEXT_DEFINITIONS: dict[str, ContextDefinition] = _parse_context_definitions(
+    "contexts"
 )
-USE_CASE_BACKEND_HINTS: dict[str, list[str]] = AGENT_CONFIG.get(
-    "useCaseBackendHints", DEFAULT_USE_CASE_BACKEND_HINTS
+CONTEXT_ALIAS_GROUPS: dict[str, list[str]] = {
+    chave: definicao["aliases"] for chave, definicao in CONTEXT_DEFINITIONS.items()
+}
+CONTEXT_HINTS: dict[str, dict[str, list[str]]] = {
+    chave: definicao["hints"] for chave, definicao in CONTEXT_DEFINITIONS.items()
+}
+CONTEXT_DESCRIPTIONS: dict[str, list[str]] = {
+    chave: definicao["descriptions"] for chave, definicao in CONTEXT_DEFINITIONS.items()
+}
+def _load_system_prompt_blocks(mapping: dict[str, str]) -> dict[str, str]:
+    blocos: dict[str, str] = {}
+    for chave, arquivo in mapping.items():
+        caminho = Path(arquivo)
+        if not caminho.is_absolute():
+            caminho = (BASE_DIR / caminho).resolve()
+        if not caminho.is_file():
+            raise RuntimeError(
+                f"Arquivo '{arquivo}' definido em 'systemPromptBlockFiles' não foi encontrado."
+            )
+        blocos[chave] = caminho.read_text(encoding="utf-8").strip()
+    return blocos
+
+
+SYSTEM_PROMPT_BLOCKS: dict[str, str] = _load_system_prompt_blocks(
+    _require_str_mapping("systemPromptBlockFiles")
 )
-USE_CASE_DESCRIPTIONS: dict[str, list[str]] = AGENT_CONFIG.get(
-    "useCaseDescriptions", DEFAULT_USE_CASE_DESCRIPTIONS
-)
+
+_AGENT_LIMITS = _require_config_section("agentLimits")
+
+
+def _require_positive_int(config_section: dict[str, Any], field: str) -> int:
+    value = config_section.get(field)
+    if not isinstance(value, int) or value <= 0:
+        raise RuntimeError(
+            f"O campo '{field}' em 'agentLimits' deve ser um inteiro positivo em '{CONFIG_PATH}'."
+        )
+    return value
 
 DB_DIR = BASE_DIR / ".rag_db"
 DOCS_DIR = BASE_DIR / "docs"
@@ -149,19 +189,25 @@ TASKS_FILE = DOCS_DIR / "todo.md"
 EXECUCOES_DIR = DOCS_DIR / "execucoes"
 ARQUIVOS_ALTERADOS_FILE = DOCS_DIR / "arquivos_alterados.md"
 SYSTEM_PROMPT_FILE = DOCS_DIR / "system_prompt.md"
+PROJECT_DOCS_DIR = DOCS_DIR / "projetos"
 
 MAX_ARQUIVO_CARACTERES = 15000
 ALTERACOES_ATUAIS: set[str] = set()
 
-DEFAULT_AGENT_MAX_ITERATIONS = 100
-DEFAULT_AGENT_MAX_EXECUTION_TIME = 280
+AGENT_MAX_ITERATIONS = _require_positive_int(_AGENT_LIMITS, "maxIterations")
+AGENT_MAX_EXECUTION_TIME = _require_positive_int(
+    _AGENT_LIMITS, "maxExecutionTime"
+)
 
 
-def format_use_case_descriptions() -> str:
+def format_context_descriptions() -> str:
     linhas: list[str] = []
-    for caso in sorted(USE_CASE_DESCRIPTIONS.keys()):
-        descricao = USE_CASE_DESCRIPTIONS[caso]
-        linhas.append(f"- **{caso.upper()}**")
-        for item in descricao:
-            linhas.append(f"  - {item}")
+    for contexto in sorted(CONTEXT_DESCRIPTIONS.keys()):
+        descricoes = CONTEXT_DESCRIPTIONS[contexto]
+        linhas.append(f"- **{contexto.upper()}**")
+        if descricoes:
+            for item in descricoes:
+                linhas.append(f"  - {item}")
+        else:
+            linhas.append("  - (sem descrição configurada)")
     return "\n".join(linhas)

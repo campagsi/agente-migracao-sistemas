@@ -1,4 +1,4 @@
-# 🧠 Agente RAG – Certidão Imobiliária (PBH)
+# 🧠 Agente RAG – Certidão Imobiliária ()
 
 Este projeto implementa um **Agente de Migração Assistida por IA**, baseado em **LangGraph**, **LangChain**, **RAG com ChromaDB**, integrado a ferramentas personalizadas capazes de:
 
@@ -6,7 +6,7 @@ Este projeto implementa um **Agente de Migração Assistida por IA**, baseado em
 - Ler e escrever arquivos
 - Consultar toda a documentação indexada via RAG
 - Planejar e replanejar etapas de migração
-- Auxiliar na modernização da Certidão Imobiliária da PBH
+- Auxiliar na modernização da Certidão Imobiliária da 
 
 O agente funciona como um **assistente interativo**, capaz de responder perguntas, gerar código, sugerir mudanças arquiteturais e registrar automaticamente todas as alterações realizadas.
 
@@ -78,7 +78,7 @@ Atualmente disponíveis:
 | `mapear_endpoints` _(nova)_ | Lista endpoints detectados no backend                |
 | `diagnosticar_bug` _(nova)_ | Identifica possíveis causas de erro a partir de logs |
 
-> Essas novas ferramentas permitem que o agente seja usado em **qualquer projeto**, não apenas no da PBH.
+> Essas novas ferramentas permitem que o agente seja usado em **qualquer projeto**, não apenas no da .
 
 ---
 

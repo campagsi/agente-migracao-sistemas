@@ -5,7 +5,7 @@ from typing import List, Tuple
 from . import config
 from .utils import (
     eh_backend,
-    identificar_caso_uso,
+    identificar_contexto,
     registrar_alteracao,
     resolver_projeto_busca,
 )
@@ -87,10 +87,11 @@ def _buscar_arquivos_em_diretorio(raiz: Path, filtro: str) -> str:
 
 def _buscar_arquivos_backend_por_filtro(filtro: str, raiz: Path) -> str:
     filtros = [filtro]
-    caso_uso = identificar_caso_uso(filtro)
+    contexto_identificado = identificar_contexto(filtro)
     fallback_usado = False
-    if caso_uso:
-        filtros.extend(config.USE_CASE_BACKEND_HINTS.get(caso_uso, []))
+    if contexto_identificado:
+        backend_hints = config.CONTEXT_HINTS.get(contexto_identificado, {}).get("backend", [])
+        filtros.extend(backend_hints)
         fallback_usado = True
 
     encontrados: list[str] = []
@@ -124,10 +125,10 @@ def _buscar_arquivos_backend_por_filtro(filtro: str, raiz: Path) -> str:
     resposta = "\n".join(encontrados)
     if atingiu_limite_global:
         resposta += "\n... (limite de 40 resultados atingido)"
-    if fallback_usado and not encontrou_principal and caso_uso:
+    if fallback_usado and not encontrou_principal and contexto_identificado:
         resposta = (
             f"Nenhum arquivo contendo '{filtro}' foi encontrado diretamente. "
-            f"Listando arquivos relacionados ao caso de uso {caso_uso.upper()}:\n"
+            f"Listando arquivos relacionados ao contexto {contexto_identificado.upper()}:\n"
             f"{resposta}"
         )
     return resposta

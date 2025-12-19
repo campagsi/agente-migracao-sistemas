@@ -1,0 +1,88 @@
+{
+  "projectDirs": {
+    "frontend_atual": "/caminho/para/seu/frontend_atual",
+    "backend_atual": "/caminho/para/seu/backend_atual",
+    "frontend_legado": "/caminho/para/seu/frontend_legado",
+    "backend_legado": "/caminho/para/seu/backend_legado"
+  },
+  "projectFrameworks": {
+    "frontend_atual": "Vue 3 (Composition + Librairie X)",
+    "backend_atual": "NestJS",
+    "frontend_legado": "Vue 2",
+    "backend_legado": "Node/Oracle"
+  },
+  "projectAliasGroups": {
+    "frontend_legado": [
+      "legacy_frontend",
+      "vue2",
+      "frontend_antigo"
+    ],
+    "frontend_atual": [
+      "novo_frontend",
+      "vue3",
+      "frontend_atual"
+    ],
+    "backend_atual": [
+      "api",
+      "nestjs",
+      "backend_atual"
+    ],
+    "backend_legado": [
+      "legacy_backend",
+      "backend_legado"
+    ]
+  },
+  "contexts": {
+    "funcionalidade_a": {
+      "aliases": [
+        "func_a",
+        "modulo_a",
+        "fluxo_a"
+      ],
+      "descriptions": [
+        "Exemplo de contexto para migração de uma funcionalidade específica.",
+        "Adapte este texto para descrever o escopo real."
+      ],
+      "hints": {
+        "backend": [
+          "modulo-a.controller.ts",
+          "modulo-a.service.ts"
+        ],
+        "frontend": [
+          "views/FuncionalidadeA.vue",
+          "components/FuncionalidadeA"
+        ]
+      }
+    },
+    "funcionalidade_b": {
+      "aliases": [
+        "func_b",
+        "modulo_b"
+      ],
+      "descriptions": [
+        "Outro exemplo de contexto. Liste requisitos, telas ou integrações relevantes."
+      ],
+      "hints": {
+        "backend": [
+          "modulo-b.controller.ts",
+          "modulo-b.repository.ts"
+        ]
+      }
+    }
+  },
+  "agentLimits": {
+    "maxIterations": 100,
+    "maxExecutionTime": 280
+  },
+  "systemPromptBlockFiles": {
+    "system_intro": "config/system_prompt_blocks/intro.md",
+    "system_specialties": "config/system_prompt_blocks/specialties.md",
+    "system_general_rules": "config/system_prompt_blocks/general_rules.md",
+    "system_tools": "config/system_prompt_blocks/tools.md",
+    "system_flow": "config/system_prompt_blocks/flow.md",
+    "system_backend_requirements": "config/system_prompt_blocks/backend_requirements.md",
+    "system_frontend_requirements": "config/system_prompt_blocks/frontend_requirements.md",
+    "system_docs": "config/system_prompt_blocks/docs.md",
+    "system_deliverables": "config/system_prompt_blocks/deliverables.md"
+  }
+}

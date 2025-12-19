@@ -7,7 +7,7 @@ from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.tools import tool
-from langgraph.graph import END, StateGraph
+from langgraph.graph import StateGraph
 from langgraph.prebuilt import create_react_agent
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
@@ -42,16 +42,29 @@ class LegacyChatOpenAI(ChatOpenAI):
 class TerminalCallbackHandler(BaseCallbackHandler):
     def on_llm_start(self, serialized, prompts, **kwargs):
         print("[Agente] Consultando LLM...", flush=True)
+        print("🟡 Prompt enviado ao LLM:")
+        for i, prompt in enumerate(prompts):
+            print(f"--- Prompt {i+1} ---")
+            print(prompt)
+            print("-" * 40)
 
     def on_llm_end(self, response, **kwargs):
         print("[Agente] LLM respondeu.", flush=True)
+        print("🟢 Resposta recebida do LLM:")
+        try:
+            for gen in response.generations:
+                print(gen[0].text.strip())
+        except Exception:
+            print(response)
 
     def on_tool_start(self, serialized, input_str, **kwargs):
         nome = serialized.get("name", "ferramenta")
         print(f"[Agente] Executando tool '{nome}'...", flush=True)
+        print(f"🛠️ Entrada da tool: {input_str}")
 
     def on_tool_end(self, output, **kwargs):
-        print("[Agente] Tool concluída.", flush=True)
+        print("✅ Tool concluída. Saída:")
+        print(output)
 
 
 def _carregar_system_prompt() -> str:
@@ -63,8 +76,9 @@ def _carregar_system_prompt() -> str:
         "frontend_atual": str(config.PROJECT_PATHS.get("frontend_atual") or ""),
         "backend_atual": str(config.PROJECT_PATHS.get("backend_atual") or ""),
         "backend_legado": str(config.PROJECT_PATHS.get("backend_legado") or ""),
-        "use_case_section": config.format_use_case_descriptions(),
+        "context_section": config.format_context_descriptions(),
     }
+    contexto.update(config.SYSTEM_PROMPT_BLOCKS)
     return template.format(**contexto)
 
 
@@ -197,37 +211,24 @@ class AgentState(TypedDict):
 
 
 
-def build_graph_agent(rag_history: list[tuple[str, str]]):
+from langgraph.graph import StateGraph
+
+LangGraph = StateGraph
+
+def build_graph_agent(rag_history: list[tuple[str, str]]) -> LangGraph:
     react_agent = build_react_agent(rag_history)
     max_iterations = _obter_limite_agente(
-        "AGENT_MAX_ITERATIONS", config.DEFAULT_AGENT_MAX_ITERATIONS
+        "AGENT_MAX_ITERATIONS", config.AGENT_MAX_ITERATIONS
     )
 
     def executar_agente(state: AgentState) -> AgentState:
         pergunta = state["input"]
         callback_handler = TerminalCallbackHandler()
-        historia_anterior = state.get("history") or []
+        current_state = state.copy()
+        historico = current_state.get("history") or []
+        contador = current_state.get("__contador__", 0)
+        encerrar = False
 
-        confirmacoes = {
-            "sim",
-            "sim.",
-            "yes",
-            "claro",
-            "pode fazer isso",
-            "pode prosseguir",
-            "prossiga",
-        }
-        pergunta_normalizada = pergunta.strip().lower()
-        eh_confirmacao = pergunta_normalizada in confirmacoes
-
-        ultimo_ai: AIMessage | None = None
-        if historia_anterior:
-            for msg in reversed(historia_anterior):
-                if isinstance(msg, AIMessage):
-                    ultimo_ai = msg
-                    break
-
-        context_parts: list[str] = []
         field_labels = [
             ("tarefa_atual", "Tarefa atual"),
             ("caso_uso", "Caso de uso"),
@@ -239,60 +240,94 @@ def build_graph_agent(rag_history: list[tuple[str, str]]):
             ("endpoints_backend", "Endpoints backend"),
             ("regras_negocio", "Regras de negócio"),
         ]
-        for field, label in field_labels:
-            valor = state.get(field)
-            if valor:
-                context_parts.append(f"{label}: {valor}")
 
-        if eh_confirmacao and ultimo_ai:
-            ultima_pergunta = ultimo_ai.content.strip()
-            if ultima_pergunta.endswith("?") or "?" in ultima_pergunta:
-                context_parts.append(
-                    "Confirmação do usuário: aceitou a última sugestão do agente."
-                )
+        gatilhos_fim = [
+            "planejamento concluído",
+            "decisão registrada",
+            "documentação finalizada",
+            "etapa concluída",
+            "tudo pronto",
+        ]
 
-        mensagens = historia_anterior.copy()
-        if context_parts:
-            context_text = " | ".join(context_parts)
-            mensagens.insert(0, SystemMessage(content=context_text))
-
-        mensagens.append(HumanMessage(content=pergunta))
-
-        resultado = react_agent.invoke(
-            {"messages": mensagens, "remaining_steps": max_iterations},
-            config={"callbacks": [callback_handler]},
-        )
-
-        mensagens_resultado = resultado.get("messages", [])
-        ultima_resposta = next(
-            (m for m in reversed(mensagens_resultado) if isinstance(m, AIMessage)), None
-        )
-        answer = ultima_resposta.content if ultima_resposta else ""
-
-        novo_historico = historia_anterior.copy()
-        novo_historico.append(HumanMessage(content=pergunta))
-        if ultima_resposta:
-            novo_historico.append(ultima_resposta)
-
-        rag_history.append((pergunta, answer))
-
-        return {
-            "input": pergunta,
-            "answer": answer,
-            "history": novo_historico,
-            "tarefa_atual": state.get("tarefa_atual"),
-            "caso_uso": state.get("caso_uso"),
-            "prioridade": state.get("prioridade"),
-            "planejamento_format": state.get("planejamento_format"),
-            "prazo": state.get("prazo"),
-            "integracoes_externas": state.get("integracoes_externas"),
-            "implementado_frontend": state.get("implementado_frontend"),
-            "endpoints_backend": state.get("endpoints_backend"),
-            "regras_negocio": state.get("regras_negocio"),
+        confirmacoes = {
+            "sim",
+            "sim.",
+            "yes",
+            "claro",
+            "pode fazer isso",
+            "pode prosseguir",
+            "prossiga",
         }
+
+        while not encerrar and contador < max_iterations:
+            confirmacao = pergunta.strip().lower() in confirmacoes
+
+            ultimo_ai: AIMessage | None = None
+            for msg in reversed(historico):
+                if isinstance(msg, AIMessage):
+                    ultimo_ai = msg
+                    break
+
+            context_parts: list[str] = []
+            for field, label in field_labels:
+                valor = current_state.get(field)
+                if valor:
+                    context_parts.append(f"{label}: {valor}")
+
+            if confirmacao and ultimo_ai:
+                ultima_pergunta = ultimo_ai.content.strip()
+                if ultima_pergunta.endswith("?") or "?" in ultima_pergunta:
+                    context_parts.append("Confirmação do usuário: aceitou a última sugestão do agente.")
+
+            mensagens = historico.copy()
+            if context_parts:
+                mensagens.insert(0, SystemMessage(content=" | ".join(context_parts)))
+            mensagens.append(HumanMessage(content=pergunta))
+
+            resultado = react_agent.invoke(
+                {"messages": mensagens, "remaining_steps": max_iterations},
+                config={"callbacks": [callback_handler]},
+            )
+
+            mensagens_resultado = resultado.get("messages", [])
+            ultima_resposta = next(
+                (m for m in reversed(mensagens_resultado) if isinstance(m, AIMessage)), None
+            )
+            answer = ultima_resposta.content if ultima_resposta else ""
+
+            novo_historico = historico.copy()
+            novo_historico.append(HumanMessage(content=pergunta))
+            if ultima_resposta:
+                novo_historico.append(ultima_resposta)
+
+            rag_history.append((pergunta, answer))
+
+            resposta_normalizada = answer.lower()
+            if any(frase in resposta_normalizada for frase in gatilhos_fim):
+                encerrar = True
+
+            contador += 1
+            if contador >= max_iterations:
+                encerrar = True
+
+            historico = novo_historico
+            current_state = {
+                **current_state,
+                "answer": answer,
+                "history": historico,
+                "__contador__": contador,
+                "encerrar": encerrar,
+            }
+
+            print(f"[DEBUG] Iteração {contador} – Encerrar? {encerrar}", flush=True)
+
+            if encerrar:
+                break
+
+        return current_state
 
     graph = StateGraph(AgentState)
     graph.add_node("executar_agente", executar_agente)
     graph.set_entry_point("executar_agente")
-    graph.add_edge("executar_agente", END)
+
     return graph.compile()
