@@ -70,9 +70,3 @@ graph LR
 
 - **Ingestão**: `ingest.py` lê `docs/`, divide em chunks (`RecursiveCharacterTextSplitter`) e persiste em `.rag_db` via Chroma.
 - **Documentação viva**: cada execução atualiza `docs/todo.md`, `docs/arquivos_alterados.md` e cria um markdown em `docs/execucoes/` com `utils.registrar_*`.
-
-## 5. Próximos passos sugeridos
-
-1. Criar testes automáticos que simulem ferramentas (`tools.buscar_arquivos`, `core/cli.run`).
-2. Adicionar monitoramento para `AGENT_CONFIG_PATH` ausente para evitar comportamento silencioso.
-3. Gerar visualizações adicionais (ex.: ER de documentos indexados) com Mermaid em novas seções deste documento.

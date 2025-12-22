@@ -188,7 +188,7 @@ DOCS_DIR = BASE_DIR / "docs"
 TASKS_FILE = DOCS_DIR / "todo.md"
 EXECUCOES_DIR = DOCS_DIR / "execucoes"
 ARQUIVOS_ALTERADOS_FILE = DOCS_DIR / "arquivos_alterados.md"
-SYSTEM_PROMPT_FILE = DOCS_DIR / "system_prompt.md"
+SYSTEM_PROMPT_FILE = BASE_DIR / "config" / "system_prompt.md"
 PROJECT_DOCS_DIR = DOCS_DIR / "projetos"
 
 MAX_ARQUIVO_CARACTERES = 15000
